@@ -1,17 +1,39 @@
 import * as React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { Platform, StyleSheet, View, Text } from 'react-native';
 import TensorioTensorflow from 'react-native-tensorio-tensorflow';
 
+// @ts-ignore
+const { imageKeyFormat, imageKeyData, imageTypeAsset } = TensorioTensorflow.getConstants();
+const imageAsset = Platform.OS === 'ios' ? 'cat' : 'cat.jpg';
+
 export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
+  const [results, setResults] = React.useState<object | undefined>();
 
   React.useEffect(() => {
-    TensorioTensorflow.multiply(3, 7).then(setResult);
+    TensorioTensorflow.load('cats-vs-dogs-predict.tiobundle', 'classifier');
+    
+    TensorioTensorflow
+      .run('classifier', {
+        'image': {
+          [imageKeyFormat]: imageTypeAsset,
+          [imageKeyData]: imageAsset
+        }
+      })
+      .then(output => {
+        // @ts-ignore
+        return output['sigmoid'];
+      })
+      .then(setResults)
+      .catch(error => {
+        console.log(error)
+      });
+
+      TensorioTensorflow.unload('classifier');
   }, []);
 
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <Text>Result: {JSON.stringify(results, null, 2)}</Text>
     </View>
   );
 }
