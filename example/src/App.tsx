@@ -28,7 +28,7 @@ export default function App() {
         console.log(error)
       });
 
-      TensorioTensorflow.unload('classifier');
+  TensorioTensorflow.unload('classifier');
   }, []);
 
   return (

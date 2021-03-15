@@ -8,6 +8,12 @@ Tensor/IO for React Native with the TensorFlow backend
 npm install react-native-tensorio-tensorflow
 ```
 
+You may need to increase the amount of heap memory available to the JVM. If you get an error when you build your application with something about the "Java heap space" add the following to your *gradle.properties*:
+
+```gradle
+org.gradle.jvmargs=-Xms512M -Xmx4g -XX:MaxPermSize=1024m -XX:MaxMetaspaceSize=1g -Dkotlin.daemon.jvm.options="-Xmx1g"
+```
+
 ## Usage
 
 ```js
