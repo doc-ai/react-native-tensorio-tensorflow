@@ -24,6 +24,10 @@ org.gradle.jvmargs=-Xms512M -Xmx4g -XX:MaxPermSize=1024m -XX:MaxMetaspaceSize=1g
 
 ## Usage
 
+### Inference
+
+Inference with a model is straightforward. You will load the model, run it on some data with special consideration for image data discussed below, handle errors, and read the outputs. When you are finished unload the model.
+
 ```js
 import TensorioTensorflow from 'react-native-tensorio-tensorflow';
 
@@ -50,11 +54,66 @@ TensorioTensorflow
     // Do something with the output
   })
   .catch(error => {
-    // Handle error
+    // Handle any errors
   });
 
 // When you're done with the model always unload it to free up the underlying resources
 TensorioTensorflow.unload('classifier');
+```
+
+### Training
+
+Training works like inference except that you must pass labeled training data in batches to the train function. Call train, read the results, handle errors, and unload the model when you are done.
+
+```js
+import TensorioTensorflow from 'react-native-tensorio-tensorflow';
+
+// If you're using images acquire the image object constants you need
+const { imageKeyFormat, imageKeyData, imageTypeAsset } = TensorioTensorflow.getConstants();
+
+// In our example we have an image bundled as an image asset on ios and an asset on android
+const catImage = Platform.OS === 'ios' ? 'cat' : 'cat.jpg';
+const dogImage = Platform.OS === 'ios' ? 'dog' : 'dog.jpg';
+const catLabel = 0;
+const dogLabel = 1;
+
+// Prepare a batch of training data. This is just an array of training objects.
+// Keep batch sizes small due to on-device memory constraints
+
+const batch = [
+  {
+    'image': {
+      [imageKeyFormat]: imageTypeAsset,
+      [imageKeyData]: catImage
+     },
+    'labels': catLabel
+  },
+  {
+    'image': {
+      [imageKeyFormat]: imageTypeAsset,
+      [imageKeyData]: dogImage
+    },
+    'labels': dogLabel
+  }
+]
+
+// Load the trainable model, giving it a name
+TensorioTensorflow.load('cats-vs-dogs-train.tiobundle', 'trainable');
+
+// Call train using the name you gave the model and its expected inputs.
+// All model functions return promises, so you can use `then` on the result and `catch` for errors
+
+TensorioTensorflow
+  .train('trainable', batch)
+  .then(output => {
+    // Do something with the output
+  })
+  .catch(error => {
+    // Handle any errors
+  });
+
+// When you're done with the model always unload it to free up the underlying resources
+TensorioTensorflow.unload('trainable');
 ```
 
 ## Contributing

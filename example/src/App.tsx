@@ -7,8 +7,8 @@ const { imageKeyFormat, imageKeyData, imageTypeAsset } = TensorioTensorflow.getC
 
 const catImage = Platform.OS === 'ios' ? 'cat' : 'cat.jpg';
 const dogImage = Platform.OS === 'ios' ? 'dog' : 'dog.jpg';
-const catLabel = [0];
-const dogLabel = [1];
+const catLabel = 0;
+const dogLabel = 1;
 
 export default function App() {
   const [results, setResults] = React.useState<object | undefined>();
@@ -69,6 +69,8 @@ export default function App() {
       .catch(error => {
         console.log(error)
       });
+
+      TensorioTensorflow.unload('trainable');
 
   }, []);
 
