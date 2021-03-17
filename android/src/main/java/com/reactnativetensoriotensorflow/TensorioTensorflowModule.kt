@@ -1,8 +1,12 @@
 package com.reactnativetensoriotensorflow
 
+import ai.doc.tensorio.core.data.Batch
+import ai.doc.tensorio.core.layerinterface.DataType.*
+import ai.doc.tensorio.core.layerinterface.LayerDescription
 import ai.doc.tensorio.core.model.Model
 import ai.doc.tensorio.core.modelbundle.ModelBundle
 import ai.doc.tensorio.core.modelbundle.ModelBundle.ModelBundleException
+import ai.doc.tensorio.core.training.TrainableModel
 import ai.doc.tensorio.core.utilities.AndroidAssets
 import ai.doc.tensorio.core.utilities.ClassificationHelper
 import ai.doc.tensorio.tensorflow.model.TensorFlowModel
@@ -14,7 +18,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.nio.file.FileSystemException
 
 const val RNTIOImageKeyData = "RNTIOImageKeyData"
 const val RNTIOImageKeyFormat = "RNTIOImageKeyFormat"
@@ -115,7 +118,7 @@ class TensorioTensorflowModule(reactContext: ReactApplicationContext) : ReactCon
       // Reject if model with name is already loaded
 
       if (models[hashname] != null) {
-        promise.reject("ai.doc.tensorio.tensorio.rn:load:name-in-use", "Name already use. Use a different name, and do not reload a model without unloading it first")
+        promise.reject("ai.doc.tensorio.tensorflow.rn:load:name-in-use", "Name already use. Use a different name, and do not reload a model without unloading it first")
         return
       }
 
@@ -148,7 +151,7 @@ class TensorioTensorflowModule(reactContext: ReactApplicationContext) : ReactCon
   @ReactMethod
   fun unload(name: String, promise: Promise) {
     if (models[name] == null) {
-      promise.reject("ai.doc.tensorio.tensorio.rn:unload:model-not-found", "No model with this name was found")
+      promise.reject("ai.doc.tensorio.tensorflow.rn:unload:model-not-found", "No model with this name was found")
       return
     }
 
@@ -176,17 +179,24 @@ class TensorioTensorflowModule(reactContext: ReactApplicationContext) : ReactCon
   @ReactMethod
   fun run(name: String, data: ReadableMap, promise: Promise) {
     if (models[name] == null) {
-      promise.reject("ai.doc.tensorio.tensorio.rn:run:model-not-found", "No model with this name was found")
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:model-not-found", "No model with this name was found")
       return
     }
 
     val model = models[name] as Model
     val hashmap = MapUtil.toMap(data)
 
+    // Ensure that data is not empty
+
+    if (hashmap.count() == 0) {
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:input-empty", "Provided data is empty")
+      return
+    }
+
     // Ensure that the provided keys match the model's expected keys, or return an error
 
     if (!model.io.inputs.keys().equals(hashmap.keys)) {
-      promise.reject("ai.doc.tensorio.tensorio.rn:run:input-mismatch", "Provided inputs do not match expected inputs")
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:input-mismatch", "Provided inputs do not match expected inputs")
       return
     }
 
@@ -195,7 +205,7 @@ class TensorioTensorflowModule(reactContext: ReactApplicationContext) : ReactCon
     val preparedInputs = preparedInputs(hashmap, model)
 
     if (preparedInputs == null) {
-      promise.reject("ai.doc.tensorio.tensorio.rn:run:prepared-inputs", "Unable to prepare inputs from react native for inference")
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:prepared-inputs", "Unable to prepare inputs from react native for inference")
       return
     }
 
@@ -206,7 +216,7 @@ class TensorioTensorflowModule(reactContext: ReactApplicationContext) : ReactCon
     try {
       outputs = model.runOn(preparedInputs)
     } catch (e: Exception) {
-      promise.reject("ai.doc.tensorio.tensorio.rn:run:inference-exception", e)
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:inference-exception", e)
       return
     }
 
@@ -215,7 +225,78 @@ class TensorioTensorflowModule(reactContext: ReactApplicationContext) : ReactCon
     val preparedOutputs = preparedOutputs(outputs, model)
 
     if (preparedOutputs == null) {
-      promise.reject("ai.doc.tensorio.tensorio.rn:run:prepared-outputs", "Unable to prepare outputs for return to react native")
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:prepared-outputs", "Unable to prepare outputs for return to react native")
+      return
+    }
+
+    // Return results in React Native format
+
+    promise.resolve(MapUtil.toWritableMap(preparedOutputs))
+  }
+
+  /**
+   * Bridged methods that performs unbatched training with a loaded model and returns the results.
+   */
+
+  // TODO: Output conversion is destroying float value
+
+  @ReactMethod
+  fun train(name: String, data: ReadableArray, promise: Promise) {
+    if (models[name] == null) {
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:model-not-found", "No model with this name was found")
+      return
+    }
+
+    val model = models[name] as Model
+    val mapArray = ArrayUtil.toArray(data).asList() as List<Map<String, Object>>
+
+    // Ensure that data is not empty
+
+    if (mapArray.count() == 0) {
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:input-empty", "Provided data is empty")
+      return
+    }
+
+    // Ensure that the provided keys match the model's expected keys, or return an error
+
+    if (!model.io.inputs.keys().equals(mapArray[0].keys)) {
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:input-mismatch", "Provided inputs do not match expected inputs")
+      return
+    }
+
+    // Prepare inputs as batch, converting base64 encoded image data or reading image data from the filesystem
+
+    val keys = mapArray[0].keys.toTypedArray()
+    val batch = Batch(keys)
+
+    for (hashmap in mapArray) {
+      val preparedInputs = preparedInputs(hashmap, model)
+
+      if (preparedInputs == null) {
+        promise.reject("ai.doc.tensorio.tensorflow.rn:run:prepared-inputs", "Unable to prepare inputs from react native for inference")
+        return
+      }
+
+      batch.add(mapToBatchItem(preparedInputs))
+    }
+
+    // Perform training
+
+    val outputs: Map<String, Any>
+
+    try {
+      outputs = (model as TrainableModel).trainOn(batch)
+    } catch (e: Exception) {
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:train-exception", e)
+      return
+    }
+
+    // Prepare outputs, converting pixel buffer outputs to base64 encoded jpeg string data
+
+    val preparedOutputs = preparedOutputs(outputs, model)
+
+    if (preparedOutputs == null) {
+      promise.reject("ai.doc.tensorio.tensorflow.rn:run:prepared-outputs", "Unable to prepare outputs for return to react native")
       return
     }
 
@@ -302,7 +383,7 @@ class TensorioTensorflowModule(reactContext: ReactApplicationContext) : ReactCon
       layer.doCase(
         {
           // Vector layer
-          preparedInputs[layer.name] = inputs[layer.name] as Any
+          preparedInputs[layer.name] = typedInput(it, inputs[layer.name] as Any)
         },
         {
           // Image layer
@@ -315,11 +396,11 @@ class TensorioTensorflowModule(reactContext: ReactApplicationContext) : ReactCon
         },
         {
           // Bytes layer
-          preparedInputs[layer.name] = inputs[layer.name] as Any
+          preparedInputs[layer.name] = typedInput(it, inputs[layer.name] as Any)
         },
         {
           // Scalar layer
-          preparedInputs[layer.name] = inputs[layer.name] as Any
+          preparedInputs[layer.name] = typedInput(it, inputs[layer.name] as Any)
         })
     }
 
@@ -328,6 +409,75 @@ class TensorioTensorflowModule(reactContext: ReactApplicationContext) : ReactCon
     }
 
     return preparedInputs
+  }
+
+  /**
+   * Types Any inputs to the primitive arrays required by Tensor/IO, including float[], byte[],
+   * int[], and long[]. Barf. Necessary because React Native always gives us doubles but models
+   * take the above. Holy Jesus Christ this is awful. And primitives vs objects! Why!?!
+   */
+
+  // TODO: Rewrite this whole class in Java.
+
+  private fun typedInput(layer: LayerDescription, input: Any): Any {
+    return when (input) {
+      is String -> {
+        input
+      }
+      is Boolean -> {
+        booleanArrayOf(input)
+      }
+      is Array<*> -> {
+        when (input[0]) {
+          is String -> {
+            input
+          }
+          is Boolean -> {
+            input
+          }
+          is Number -> {
+            when (layer.dtype) {
+              UInt8 -> {
+                input.map { (it as Double).toByte() }.toByteArray()
+              }
+              Float32 -> {
+                input.map { (it as Double).toFloat() }.toFloatArray()
+              }
+              Int32 -> {
+                input.map { (it as Double).toInt() }.toIntArray()
+              }
+              Int64 -> {
+                input.map { (it as Double).toLong() }.toLongArray()
+              }
+            }
+          }
+          else -> {
+            print("Default typing behavior returns object untyped, which may not be what you want")
+            input
+          }
+        }
+      }
+      is Number -> {
+        when (layer.dtype) {
+          UInt8 -> {
+            byteArrayOf((input as Double).toByte())
+          }
+          Float32 -> {
+            floatArrayOf((input as Double).toFloat())
+          }
+          Int32 -> {
+            intArrayOf((input as Double).toInt())
+          }
+          Int64 -> {
+            longArrayOf((input as Double).toLong())
+          }
+        }
+      }
+      else -> {
+        print("Default typing behavior returns object untyped, which may not be what you want")
+        input
+      }
+    }
   }
 
   /**
@@ -369,6 +519,20 @@ class TensorioTensorflowModule(reactContext: ReactApplicationContext) : ReactCon
     }
 
     return preparedOutputs
+  }
+
+  /**
+   * Utility function for converting a HashMap to a Batch.Item, which extends it
+   */
+
+  private fun mapToBatchItem(map: Map<String,Any>): Batch.Item {
+    val item = Batch.Item()
+
+    for ((k,v) in map) {
+      item[k] = v
+    }
+
+    return item
   }
 
   // Image Utilities
