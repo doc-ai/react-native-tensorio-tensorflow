@@ -4,12 +4,14 @@
 #import <TensorIO/NSDictionary+TIOExtensions.h>
 #import <TensorIO/UIImage+TIOCVPixelBufferExtensions.h>
 
+#import <TensorIO/TIOBatch.h>
 #import <TensorIO/TIOLayerInterface.h>
 #import <TensorIO/TIOModel.h>
 #import <TensorIO/TIOModelBackend.h>
 #import <TensorIO/TIOModelIO.h>
 #import <TensorIO/TIOModelModes.h>
 #import <TensorIO/TIOPixelBuffer.h>
+#import <TensorIO/TIOTrainableModel.h>
 
 /// Image input keys.
 
@@ -179,6 +181,15 @@ RCT_EXPORT_METHOD(run:(NSString*)name
         return;
     }
     
+    // Ensure that data is not empty
+    
+    if (inputs.count == 0) {
+        NSString *msg = @"Data is empty. You must provide at least one object for training.";
+        NSError *error = [NSError errorWithDomain:@"" code:0 userInfo:nil];
+        reject(@"", msg, error);
+        return;
+    }
+    
     // Ensure that the provided keys match the model's expected keys, or return an error
     
     NSSet<NSString*> *expectedKeys = [NSSet setWithArray:[self inputKeysForModel:model]];
@@ -227,14 +238,95 @@ RCT_EXPORT_METHOD(run:(NSString*)name
 
 // TODO: Implement Train Method
 
-/// Bridged methods that performs inference with a loaded model and returns the results.
+/// Bridged methods that performs batched training with a loaded model and returns the results.
 
 RCT_EXPORT_METHOD(train:(NSString*)name
-                  data:(NSDictionary*)inputs
+                  data:(NSArray<NSDictionary*>*)inputs
                   withResolver:(RCTPromiseResolveBlock)resolve
                   withRejecter:(RCTPromiseRejectBlock)reject) {
-    reject(@"", @"unimplemented", [NSError errorWithDomain:@"" code:0 userInfo:nil]);
+    
+    // TODO: Proper error handling
+    
+    id<TIOModel> model = self.models[name];
+    
+    // Ensure that a model has been loaded
+    
+    if (model == nil) {
+        NSString *msg = @"No model has been loaded. Call load() with the name of a model before calling run().";
+        NSError *error = [NSError errorWithDomain:@"" code:0 userInfo:nil];
+        reject(@"", msg, error);
+        return;
+    }
+    
+    // Ensure that the model is trainable
+    
+    if (!self.models[name].modes.trains) {
+        NSString *msg = @"The provided model is not a trainable model. You can only train with models exported for training.";
+        NSError *error = [NSError errorWithDomain:@"" code:0 userInfo:nil];
+        reject(@"", msg, error);
+        return;
+    }
+    
+    // Ensure that inputs is not empty
+    
+    if (inputs.count == 0) {
+        NSString *msg = @"Data is empty. You must provide at least one object for training.";
+        NSError *error = [NSError errorWithDomain:@"" code:0 userInfo:nil];
+        reject(@"", msg, error);
+        return;
+    }
+    
+    // Ensure that the provided keys match the model's expected keys, or return an error
+    
+    NSSet<NSString*> *expectedKeys = [NSSet setWithArray:[self inputKeysForModel:model]];
+    NSSet<NSString*> *providedKeys = [NSSet setWithArray:inputs[0].allKeys];
+    
+    if (![expectedKeys isEqualToSet:providedKeys]) {
+        NSString *msg = [NSString stringWithFormat:@"Provided inputs %@ don't match model's expected inputs %@", providedKeys, expectedKeys];
+        NSError *error = [NSError errorWithDomain:@"" code:0 userInfo:nil];
+        reject(@"", msg, error);
+        return;
+    }
+    
+    // Prepare inputs as batch, converting base64 encoded image data or reading image data from the filesystem
+
+    TIOBatch *batch = [[TIOBatch alloc] initWithKeys:inputs[0].allKeys];
+    
+    for (NSDictionary *input in inputs) {
+        NSDictionary *preparedInput = [self preparedInputs:input model:model];
+    
+        if (preparedInput == nil) {
+            NSString *msg = @"There was a problem preparing the inputs. Ensure that your image inputs are property encoded.";
+            NSError *error = [NSError errorWithDomain:@"" code:0 userInfo:nil];
+            reject(@"", msg, error);
+            return;
+        }
+        
+        [batch addItem:preparedInput];
+    }
+    
+    // Perform training
+    // TODO: Error checking
+    
+    NSError *error;
+    NSDictionary *results = (NSDictionary *)[(id<TIOTrainableModel>)model train:batch error:&error];
+    
+    // Prepare outputs, converting pixel buffer outputs to base64 encoded jpeg string data
+    
+    NSDictionary *preparedResults = [self preparedOutputs:results model:model];
+    
+    if (preparedResults == nil) {
+        NSString *msg = @"There was a problem preparing the outputs. Pixel buffer outputs could not be converted to base64 JPEG string data.";
+        NSError *error = [NSError errorWithDomain:@"" code:0 userInfo:nil];
+        reject(@"", msg, error);
+        return;
+    }
+    
+    // Return results
+    
+    resolve(preparedResults);
 }
+
 
 // MARK: - Run Utilities
 
@@ -458,19 +550,6 @@ RCT_EXPORT_METHOD(topN:(NSUInteger)count
                   withRejecter:(RCTPromiseRejectBlock)reject) {
     NSDictionary *topN = [classifications topN:count threshold:threshold];
     resolve(topN);
-}
-
-// Example method
-// See // https://facebook.github.io/react-native/docs/native-modules-ios
-RCT_REMAP_METHOD(multiply,
-                 multiplyWithA:(nonnull NSNumber*)a withB:(nonnull NSNumber*)b
-                 withResolver:(RCTPromiseResolveBlock)resolve
-                 withRejecter:(RCTPromiseRejectBlock)reject)
-{
-    NSString *backend = [TIOModelBackend availableBackend];
-    
-    NSNumber *result = @([a floatValue] * [b floatValue]);
-    resolve(result);
 }
 
 @end

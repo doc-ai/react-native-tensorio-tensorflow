@@ -27,6 +27,14 @@ type TensorioTensorflowType = {
    */
 
   run(name: string, data: object): Promise<object>
+  
+  /**
+   * Performs unbatched training with a model.
+   * @param name The name you gave to the model
+   * @param data An array of labeled input data to perform training with
+   */
+
+  train(name: string, data: object[]): Promise<object>
 
   /**
    * An image classification utility for finding the top N image classification

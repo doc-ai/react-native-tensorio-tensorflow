@@ -14,6 +14,7 @@
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		20F357B024636CDF00C146DC /* File.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20F357AF24636CDF00C146DC /* File.swift */; };
 		E3D3A87B25F823B2007410B5 /* cats-vs-dogs-predict.tiobundle in Resources */ = {isa = PBXBuildFile; fileRef = E3D3A87A25F823B2007410B5 /* cats-vs-dogs-predict.tiobundle */; };
+		E3D3A8CC26012C49007410B5 /* cats-vs-dogs-train.tiobundle in Resources */ = {isa = PBXBuildFile; fileRef = E3D3A8CB26012C49007410B5 /* cats-vs-dogs-train.tiobundle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 		871719007ECC5EAD276C345C /* Pods-TensorioTensorflowExample.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TensorioTensorflowExample.debug.xcconfig"; path = "Target Support Files/Pods-TensorioTensorflowExample/Pods-TensorioTensorflowExample.debug.xcconfig"; sourceTree = "<group>"; };
 		BCEA90A70F4BEAD7E9FA28B2 /* libPods-TensorioTensorflowExample.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-TensorioTensorflowExample.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E3D3A87A25F823B2007410B5 /* cats-vs-dogs-predict.tiobundle */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "cats-vs-dogs-predict.tiobundle"; sourceTree = "<group>"; };
+		E3D3A8CB26012C49007410B5 /* cats-vs-dogs-train.tiobundle */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "cats-vs-dogs-train.tiobundle"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -51,6 +53,7 @@
 			isa = PBXGroup;
 			children = (
 				E3D3A87A25F823B2007410B5 /* cats-vs-dogs-predict.tiobundle */,
+				E3D3A8CB26012C49007410B5 /* cats-vs-dogs-train.tiobundle */,
 				008F07F21AC5B25A0029DE68 /* main.jsbundle */,
 				13B07FAF1A68108700A75B9A /* AppDelegate.h */,
 				13B07FB01A68108700A75B9A /* AppDelegate.m */,
@@ -177,6 +180,7 @@
 			files = (
 				E3D3A87B25F823B2007410B5 /* cats-vs-dogs-predict.tiobundle in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
+				E3D3A8CC26012C49007410B5 /* cats-vs-dogs-train.tiobundle in Resources */,
 				13B07FBD1A68108700A75B9A /* LaunchScreen.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
