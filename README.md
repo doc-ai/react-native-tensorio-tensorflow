@@ -14,6 +14,41 @@ Run pod install in your application's root directory to install the Tensor/IO an
 
 ### Android
 
+Add support for desugaring to your application's main *bundle.gradle* file:
+
+```gradle
+android {
+  ...
+  
+  compileOptions {
+    coreLibraryDesugaringEnabled true
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
+  }
+}
+
+dependencies {
+  coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.5'
+  ...
+}
+```
+
+Add the following packaging options to your *build.gradle* if you encounter error messages about duplicate libc++ shared libraries:
+
+```gradle
+android {
+  ... 
+  
+  packagingOptions {
+    pickFirst "lib/armeabi-v7a/libc++_shared.so"
+    pickFirst "lib/arm64-v8a/libc++_shared.so"
+    pickFirst "lib/x86/libc++_shared.so"
+    pickFirst "lib/x86_64/libc++_shared.so"
+  }
+}
+```
+
+
 Sync the project's gradle files to install the Tensor/IO and TF Lite dependencies.
 
 You may need to increase the amount of heap memory available to the JVM. If you get an error when you build your application with something about the "Java heap space" add the following to your *gradle.properties*:
