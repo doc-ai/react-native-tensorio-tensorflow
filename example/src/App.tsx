@@ -28,6 +28,7 @@ export default function App() {
         }
       })
       .then(output => {
+        console.log(output);
         // @ts-ignore
         return output['sigmoid'];
       })
@@ -62,6 +63,7 @@ export default function App() {
     TensorioTensorflow
       .train('trainable', batch)
       .then(output => {
+        console.log(output);
         // @ts-ignore
         return output['sigmoid_cross_entropy_loss/value'];
       })
@@ -70,7 +72,7 @@ export default function App() {
         console.log(error)
       });
 
-      TensorioTensorflow.unload('trainable');
+    TensorioTensorflow.unload('trainable');
 
   }, []);
 
